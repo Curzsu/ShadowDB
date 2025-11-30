@@ -15,9 +15,9 @@ import top.guoziyang.mydb.backend.utils.Parser;
  */
 public class Entry {
 
-    private static final int OF_XMIN = 0;
-    private static final int OF_XMAX = OF_XMIN+8;
-    private static final int OF_DATA = OF_XMAX+8;
+    private static final int OF_XMIN = 0;   // 创建该记录的事务 ID
+    private static final int OF_XMAX = OF_XMIN+8;   // 删除该记录的事务 ID
+    private static final int OF_DATA = OF_XMAX+8;   // 真实数据
 
     private long uid;
     private DataItem dataItem;
@@ -66,16 +66,19 @@ public class Entry {
         }
     }
 
+    // 获取创建该条数据的事务ID
     public long getXmin() {
         dataItem.rLock();
         try {
             SubArray sa = dataItem.data();
+            // 从dataItem中获取创建该条数据的事务ID
             return Parser.parseLong(Arrays.copyOfRange(sa.raw, sa.start+OF_XMIN, sa.start+OF_XMAX));
         } finally {
             dataItem.rUnLock();
         }
     }
 
+    // 获取删除该条数据的事务ID（如果是0，说明还没被删除）
     public long getXmax() {
         dataItem.rLock();
         try {

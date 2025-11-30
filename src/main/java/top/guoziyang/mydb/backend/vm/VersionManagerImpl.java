@@ -95,11 +95,15 @@ public class VersionManagerImpl extends AbstractCache<Entry> implements VersionM
             }
         }
         try {
+            // 1. 检查可见性：如果我都看不见这条数据，自然不能删它
             if(!Visibility.isVisible(tm, t, entry)) {
                 return false;
             }
             Lock l = null;
             try {
+                // 2. 这里的 lt 是 LockTable，防止并发修改同一条数据（写写冲突还是要加锁的）
+                // MVCC 解决的是 读写冲突，写写冲突依然需要锁
+                // 所以这里仍需要锁，加锁防止并发修改同一条数据
                 l = lt.add(xid, uid);
             } catch(Exception e) {
                 t.err = Error.ConcurrentUpdateException;
@@ -123,6 +127,7 @@ public class VersionManagerImpl extends AbstractCache<Entry> implements VersionM
                 throw t.err;
             }
 
+            // 3. 核心动作：将 XMAX 设置为当前事务ID，标记删除
             entry.setXmax(xid);
             return true;
 
@@ -135,8 +140,12 @@ public class VersionManagerImpl extends AbstractCache<Entry> implements VersionM
     public long begin(int level) {
         lock.lock();
         try {
-            long xid = tm.begin();
-            Transaction t = Transaction.newTransaction(xid, level, activeTransaction);
+            long xid = tm.begin();  // 向 TM 申请一个新的 XID，作为当前事务ID
+
+            // 根据隔离级别创建事务对象，传入 activeTransaction (当前所有活跃事务的Map)
+            Transaction t = Transaction.newTransaction(xid, level, activeTransaction);  
+
+            // 把自己也加入活跃列表，方便后续的可见性检查
             activeTransaction.put(xid, t);
             return xid;
         } finally {

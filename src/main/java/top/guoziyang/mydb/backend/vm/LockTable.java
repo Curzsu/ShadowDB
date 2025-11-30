@@ -44,12 +44,20 @@ public class LockTable {
                 putIntoList(x2u, xid, uid);
                 return null;
             }
-            waitU.put(xid, uid);
+
+             // ... 如果被别人锁了 ...
+            waitU.put(xid, uid);    // 记录我在等谁
             //putIntoList(wait, xid, uid);
             putIntoList(wait, uid, xid);
+
+            // 【关键】每次加锁阻塞前，先检查会不会构成环
             if(hasDeadLock()) {
+
+                // 如果构成环，则回滚，也就是撤销刚才的等待操作
                 waitU.remove(xid);
                 removeFromList(wait, uid, xid);
+
+                // 抛出异常，让事务回滚
                 throw Error.DeadlockException;
             }
             Lock l = new ReentrantLock();
@@ -104,20 +112,24 @@ public class LockTable {
         if(l.size() == 0) wait.remove(uid);
     }
 
-    private Map<Long, Integer> xidStamp;
-    private int stamp;
+    private Map<Long, Integer> xidStamp;    // 记录每个XID的访问时间戳
+    private int stamp;  // 当前遍历的批次号
 
     private boolean hasDeadLock() {
         xidStamp = new HashMap<>();
         stamp = 1;
+
+        // 遍历所有持有资源的事务（也就是图中的所有起点）
         for(long xid : x2u.keySet()) {
             Integer s = xidStamp.get(xid);
+
+            // 优化：如果这个节点在之前的 dfs 中已经作为“非环节点”被访问过了，就跳过，避免重复计算
             if(s != null && s > 0) {
                 continue;
             }
-            stamp ++;
+            stamp ++;   // 开启新一轮的搜索
             if(dfs(xid)) {
-                return true;
+                return true;    // 只要找到一个环，立马报错返回
             }
         }
         return false;
@@ -125,18 +137,42 @@ public class LockTable {
 
     private boolean dfs(long xid) {
         Integer stp = xidStamp.get(xid);
+
+        // 【情况1：找到环了！】
+        // 如果当前节点的时间戳 == 当前轮次(stamp)，说明我们在这一轮搜索中，
+        // 转了一圈又回到了这个点。
+        // 比如：A(stamp=5) -> B(stamp=5) -> A(stamp=5)
         if(stp != null && stp == stamp) {
             return true;
         }
+
+
+        // 【情况2：遇到老节点】
+        // 如果这个点的时间戳 < 当前轮次，说明它在以前的轮次被检查过，且没有发现环。
+        // 既然以前没环，现在走到这也肯定没环，直接返回 false
         if(stp != null && stp < stamp) {
             return false;
         }
+
+
+        // 【情况3：新节点】
+        // 暂时标记为当前轮次，表示“我正在访问这个链条”
         xidStamp.put(xid, stamp);
 
+
+        // --- 寻找下一个节点 ---
+
+        // 1. 我(xid)在等哪个资源(uid)？
         Long uid = waitU.get(xid);
+
+        // 如果我没在等任何资源，说明我是链条的终点，没环
         if(uid == null) return false;
         Long x = u2x.get(uid);
+
+        // 这里 assert x != null 是因为如果我在等uid，那uid肯定被别人拿着
         assert x != null;
+
+        // 3. 递归去查那个拿着资源的人
         return dfs(x);
     }
 
