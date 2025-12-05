@@ -13,25 +13,25 @@ import top.guoziyang.mydb.common.Error;
 
 public class TransactionManagerImpl implements TransactionManager {
 
-    // XID文件头长度
+    // XID文件头长度，用于存总事务数
     static final int LEN_XID_HEADER_LENGTH = 8;
     // 每个事务的占用长度
     private static final int XID_FIELD_SIZE = 1;
 
     // 事务的三种状态
-    private static final byte FIELD_TRAN_ACTIVE   = 0;
-	private static final byte FIELD_TRAN_COMMITTED = 1;
-	private static final byte FIELD_TRAN_ABORTED  = 2;
+    private static final byte FIELD_TRAN_ACTIVE   = 0; // 活跃状态
+	private static final byte FIELD_TRAN_COMMITTED = 1; // 提交状态
+	private static final byte FIELD_TRAN_ABORTED  = 2; // 回滚状态
 
     // 超级事务，永远为commited状态
-    public static final long SUPER_XID = 0;
+    public static final long SUPER_XID = 0; 
 
-    static final String XID_SUFFIX = ".xid";
+    static final String XID_SUFFIX = ".xid"; // XID文件后缀
     
-    private RandomAccessFile file;
-    private FileChannel fc;
-    private long xidCounter;
-    private Lock counterLock;
+    private RandomAccessFile file; // XID文件
+    private FileChannel fc; // XID文件通道，用于读写XID文件
+    private long xidCounter; // XID计数器，用于记录当前事务数
+    private Lock counterLock; // XID计数器锁，用于保证线程安全
 
     TransactionManagerImpl(RandomAccessFile raf, FileChannel fc) {
         this.file = raf;
@@ -112,19 +112,20 @@ public class TransactionManagerImpl implements TransactionManager {
 
     // 开始一个事务，并返回XID
     public long begin() {
-        counterLock.lock();
+        counterLock.lock(); // 加锁，防止多线程同时申请同一个ID
         try {
-            long xid = xidCounter + 1;
-            updateXID(xid, FIELD_TRAN_ACTIVE);
-            incrXIDCounter();
-            return xid;
+            long xid = xidCounter + 1; // 下一个事务ID = 当前计数 + 1
+            updateXID(xid, FIELD_TRAN_ACTIVE); // 【关键步骤】在文件中将该 XID 的状态标记为 Active (0)
+            incrXIDCounter();  // 更新XID计数器，为下一个事务做准备
+            return xid; // 返回新分配的XID
         } finally {
-            counterLock.unlock();
+            counterLock.unlock(); // 解锁，释放ID
         }
     }
 
     // 提交XID事务
     public void commit(long xid) {
+        // 更新XID事务状态为提交状态
         updateXID(xid, FIELD_TRAN_COMMITTED);
     }
 

@@ -22,8 +22,9 @@ public class LockTable {
     private Map<Long, Long> waitU;      // XID正在等待的UID
     private Lock lock;
 
+    
     public LockTable() {
-        x2u = new HashMap<>();
+        x2u = new HashMap<>(); 
         u2x = new HashMap<>();
         wait = new HashMap<>();
         waitLock = new HashMap<>();
@@ -34,10 +35,10 @@ public class LockTable {
     // 不需要等待则返回null，否则返回锁对象
     // 会造成死锁则抛出异常
     public Lock add(long xid, long uid) throws Exception {
-        lock.lock();
+        lock.lock(); 
         try {
-            if(isInList(x2u, xid, uid)) {
-                return null;
+            if(isInList(x2u, xid, uid)) { 
+                return null; 
             }
             if(!u2x.containsKey(uid)) {
                 u2x.put(uid, xid);

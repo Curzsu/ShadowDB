@@ -99,23 +99,32 @@ public class VersionManagerImpl extends AbstractCache<Entry> implements VersionM
             if(!Visibility.isVisible(tm, t, entry)) {
                 return false;
             }
+
             Lock l = null;
             try {
+                // 【增长阶段：加锁】
                 // 2. 这里的 lt 是 LockTable，防止并发修改同一条数据（写写冲突还是要加锁的）
-                // MVCC 解决的是 读写冲突，写写冲突依然需要锁
-                // 所以这里仍需要锁，加锁防止并发修改同一条数据
-                l = lt.add(xid, uid);
+                // MVCC 解决的是 读写冲突，写写冲突依然需要锁，所以这里仍需要锁，加锁防止并发修改同一条数据
+                // 【动作 1】去 LockTable 登记，我要占领 uid=88
+                // 如果返回 null，说明占领成功，不用等。
+                // 如果返回 Lock 对象，说明被占了，我就在这里卡住（等待）或者报错（死锁）。
+                l = lt.add(xid, uid); 
             } catch(Exception e) {
-                t.err = Error.ConcurrentUpdateException;
-                internAbort(xid, true);
-                t.autoAborted = true;
-                throw t.err;
+                t.err = Error.ConcurrentUpdateException; 
+                internAbort(xid, true); 
+                t.autoAborted = true; 
+                throw t.err;  
             }
+ 
+            // 注意：这里拿到锁(l)后，并没有代码去释放它！
+            // 这里的 l.lock/unlock 只是为了利用 Lock 对象做线程阻塞，
+            // 并不是释放 LockTable 里的逻辑占用。
+            // 【动作 2】如果拿到号牌（Lock对象），说明我要排队
             if(l != null) {
-                l.lock();
-                l.unlock();
+                l.lock();   // 试图锁住号牌，这一步会让我（当前线程）“睡过去”
+                l.unlock(); // 等我醒来（说明前面的人把资源给我了），我把号牌销毁，继续干活
             }
-
+   
             if(entry.getXmax() == xid) {
                 return false;
             }
@@ -128,7 +137,12 @@ public class VersionManagerImpl extends AbstractCache<Entry> implements VersionM
             }
 
             // 3. 核心动作：将 XMAX 设置为当前事务ID，标记删除
+            // 这里是执行真正的删除操作（设置 XMAX），而不是简单标记。
             entry.setXmax(xid);
+
+            // 方法结束了，但我依然霸占着 uid 这个资源，没有调用 lt.remove！
+            // 注意：这里没有释放 uid=88！我的 x2u 列表里多了一个 88
+            // 这就是“增长”！
             return true;
 
         } finally {
