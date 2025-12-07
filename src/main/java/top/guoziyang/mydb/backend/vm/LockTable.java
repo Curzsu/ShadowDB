@@ -14,13 +14,13 @@ import top.guoziyang.mydb.common.Error;
  * 维护了一个依赖等待图，以进行死锁检测
  */
 public class LockTable {
-    
+       
     private Map<Long, List<Long>> x2u;  // 某个XID已经获得的资源的UID列表
     private Map<Long, Long> u2x;        // UID被某个XID持有
     private Map<Long, List<Long>> wait; // 正在等待UID的XID列表
     private Map<Long, Lock> waitLock;   // 正在等待资源的XID的锁
     private Map<Long, Long> waitU;      // XID正在等待的UID
-    private Lock lock;
+    private Lock lock; 
 
     
     public LockTable() {
