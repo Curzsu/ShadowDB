@@ -19,7 +19,7 @@ public interface Logger {
     void close();
 
     public static Logger create(String path) {
-        File f = new File(path+LoggerImpl.LOG_SUFFIX);
+        File f = new File(path+LoggerImpl.LOG_SUFFIX);  // 添加 .log 后缀
         try {
             if(!f.createNewFile()) {
                 Panic.panic(Error.FileExistsException);
@@ -40,11 +40,12 @@ public interface Logger {
            Panic.panic(e);
         }
 
+         // 写入初始 XChecksum = 0
         ByteBuffer buf = ByteBuffer.wrap(Parser.int2Byte(0));
         try {
             fc.position(0);
             fc.write(buf);
-            fc.force(false);
+            fc.force(false);    // 强制将数据写入磁盘
         } catch (IOException e) {
             Panic.panic(e);
         }
@@ -71,7 +72,7 @@ public interface Logger {
         }
 
         LoggerImpl lg = new LoggerImpl(raf, fc);
-        lg.init();
+        lg.init();  // 关键：初始化并移除 BadTail
 
         return lg;
     }

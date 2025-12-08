@@ -25,11 +25,11 @@ public interface DataManager {
         Logger lg = Logger.open(path);
         DataManagerImpl dm = new DataManagerImpl(pc, lg, tm);
         if(!dm.loadCheckPageOne()) {
-            Recover.recover(tm, lg, pc);
+            Recover.recover(tm, lg, pc); // 恢复事务日志
         }
-        dm.fillPageIndex();
-        PageOne.setVcOpen(dm.pageOne);
-        dm.pc.flushPage(dm.pageOne);
+        dm.fillPageIndex(); // 填充页索引
+        PageOne.setVcOpen(dm.pageOne); // 设置PageOne的ValidCheck字段
+        dm.pc.flushPage(dm.pageOne); // 刷新PageOne到磁盘
 
         return dm;
     }

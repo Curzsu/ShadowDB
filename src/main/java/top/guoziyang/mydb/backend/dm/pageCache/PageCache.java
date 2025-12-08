@@ -11,7 +11,7 @@ import top.guoziyang.mydb.common.Error;
 
 public interface PageCache {
     
-    public static final int PAGE_SIZE = 1 << 13;
+    public static final int PAGE_SIZE = 1 << 13; // 8192字节 = 8KB，每页大小
 
     int newPage(byte[] initData);
     Page getPage(int pgno) throws Exception;
@@ -22,15 +22,20 @@ public interface PageCache {
     int getPageNumber();
     void flushPage(Page pg);
 
+
+    // 创建新数据库文件
     public static PageCacheImpl create(String path, long memory) {
         File f = new File(path+PageCacheImpl.DB_SUFFIX);
         try {
+            // 创建.db文件
             if(!f.createNewFile()) {
-                Panic.panic(Error.FileExistsException);
+                Panic.panic(Error.FileExistsException); // 文件已存在就崩溃
             }
         } catch (Exception e) {
             Panic.panic(e);
         }
+
+        // 检查读写权限
         if(!f.canRead() || !f.canWrite()) {
             Panic.panic(Error.FileCannotRWException);
         }
@@ -38,23 +43,27 @@ public interface PageCache {
         FileChannel fc = null;
         RandomAccessFile raf = null;
         try {
+            // 打开文件通道    
             raf = new RandomAccessFile(f, "rw");
             fc = raf.getChannel();
         } catch (FileNotFoundException e) {
            Panic.panic(e);
         }
+        // memory/PAGE_SIZE = 最多缓存多少页
         return new PageCacheImpl(raf, fc, (int)memory/PAGE_SIZE);
     }
 
+    // 打开已有数据库
     public static PageCacheImpl open(String path, long memory) {
         File f = new File(path+PageCacheImpl.DB_SUFFIX);
         if(!f.exists()) {
-            Panic.panic(Error.FileNotExistsException);
+            Panic.panic(Error.FileNotExistsException);  // 文件不存在就崩溃
         }
         if(!f.canRead() || !f.canWrite()) {
             Panic.panic(Error.FileCannotRWException);
         }
 
+        // 其余逻辑与create()相同
         FileChannel fc = null;
         RandomAccessFile raf = null;
         try {

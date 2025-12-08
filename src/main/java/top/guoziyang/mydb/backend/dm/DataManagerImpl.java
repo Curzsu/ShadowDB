@@ -131,9 +131,10 @@ public class DataManagerImpl extends AbstractCache<DataItem> implements DataMana
     }
 
     // 在打开已有文件时时读入PageOne，并验证正确性
+    // 具体逻辑：读入PageOne，验证PageOne的校验和，如果正确则返回true，否则返回false
     boolean loadCheckPageOne() {
         try {
-            pageOne = pc.getPage(1);
+            pageOne = pc.getPage(1); // 读入PageOne
         } catch (Exception e) {
             Panic.panic(e);
         }

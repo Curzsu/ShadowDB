@@ -43,6 +43,12 @@ public class PageOne {
         return checkVc(pg.getData());
     }
 
+    /**
+     * 检查PageOne的ValidCheck字段
+     * 具体逻辑：比较100~107字节和108~115字节是否相等，相等则返回true，否则返回false
+     * @param raw
+     * @return
+     */
     private static boolean checkVc(byte[] raw) {
         return Arrays.equals(Arrays.copyOfRange(raw, OF_VC, OF_VC+LEN_VC), Arrays.copyOfRange(raw, OF_VC+LEN_VC, OF_VC+2*LEN_VC));
     }
