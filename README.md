@@ -14,7 +14,7 @@ ShadowDB 是一个 Java 实现的简单的数据库，部分原理参照自 MySQ
 ## 待改进的点
 - 改进引用计数框架为LRU
 - drop功能完善
-- 接入Text2SQL模型？
+- 接入Text2SQL模型，引入ai组件
 - 修改一些包名
 
 ## 运行方式
